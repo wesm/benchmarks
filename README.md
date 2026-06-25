@@ -122,9 +122,14 @@ name for submission:
     (qa) $ export CONBENCH_SERVER_URL=http://localhost:18080
     (qa) $ export CONBENCH_TOKEN=<token>
     (qa) $ export CONBENCH_RESULTS_DIR=bench-results
+    (qa) $ export CONBENCH_SUBMIT_JOBS=${CONBENCH_SUBMIT_JOBS:-16}
     (qa) $ conbench-v2 results submit "$CONBENCH_RESULTS_DIR/*.json" \
         --server "$CONBENCH_SERVER_URL" \
-        --jobs 16
+        --jobs "$CONBENCH_SUBMIT_JOBS"
+
+The Buildkite migration fork sets a higher measured default for full
+one-file-per-result suite submissions. The local example keeps a conservative
+default so development endpoints can opt into more parallelism deliberately.
 
 This fork does not use the old `.conbench` email/password file for publishing.
 It also does not use `benchclients`, `benchconnect`, or `benchalerts` to post
