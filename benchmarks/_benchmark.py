@@ -1,3 +1,4 @@
+import copy
 import datetime
 import functools
 import json
@@ -16,6 +17,30 @@ import pyarrow
 from benchmarks import _sources
 
 logging.basicConfig(format="%(levelname)s: %(message)s")
+
+
+MACHINE_INFO_INT_FIELDS = {
+    "cpu_l1d_cache_bytes",
+    "cpu_l1i_cache_bytes",
+    "cpu_l2_cache_bytes",
+    "cpu_l3_cache_bytes",
+    "cpu_core_count",
+    "cpu_thread_count",
+    "cpu_frequency_max_hz",
+    "memory_bytes",
+    "gpu_count",
+}
+STATS_FLOAT_FIELDS = {
+    "min",
+    "max",
+    "mean",
+    "median",
+    "stdev",
+    "q1",
+    "q3",
+    "iqr",
+}
+STATS_FLOAT_ARRAY_FIELDS = {"data", "times"}
 
 
 def _now_formatted() -> str:
@@ -65,12 +90,50 @@ class ConbenchCommunicator(conbenchlegacy.runner.Conbench):
         self.results_dir.mkdir(parents=True, exist_ok=True)
         path = self.results_dir / f"result-{uuid.uuid4().hex}.json"
         tmp_path = path.with_name(path.name + ".tmp")
+        benchmark = normalize_v2_payload(benchmark)
         tmp_path.write_text(
             json.dumps(benchmark, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
         tmp_path.replace(path)
         print(f"Wrote Conbench result payload: {path}")
+
+
+def normalize_v2_payload(payload: dict) -> dict:
+    normalized = copy.deepcopy(payload)
+
+    machine_info = normalized.get("machine_info")
+    if isinstance(machine_info, dict):
+        for key in MACHINE_INFO_INT_FIELDS:
+            if key in machine_info:
+                machine_info[key] = coerce_int(machine_info[key])
+
+    stats = normalized.get("stats")
+    if isinstance(stats, dict):
+        for key in STATS_FLOAT_FIELDS:
+            if key in stats:
+                stats[key] = coerce_float(stats[key])
+        for key in STATS_FLOAT_ARRAY_FIELDS:
+            if isinstance(stats.get(key), list):
+                stats[key] = [coerce_float(value) for value in stats[key]]
+
+    return normalized
+
+
+def coerce_int(value):
+    if value is None or isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        return int(value)
+    return value
+
+
+def coerce_float(value):
+    if value is None or isinstance(value, (float, int)):
+        return value
+    if isinstance(value, str):
+        return float(value)
+    return value
 
 
 class Benchmark(conbenchlegacy.runner.Benchmark):
