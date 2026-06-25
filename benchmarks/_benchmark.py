@@ -6,12 +6,12 @@ import os
 import shutil
 import subprocess
 import traceback
+import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import conbenchlegacy.runner
 import pyarrow
-from benchclients import ConbenchClient
 
 from benchmarks import _sources
 
@@ -55,29 +55,22 @@ def arrow_info() -> Dict[str, Any]:
 
 
 class ConbenchCommunicator(conbenchlegacy.runner.Conbench):
-    """Exactly the same as the legacy "Conbench" communication object, with the
-    publish() method overridden to use the new retrying client.
-    """
+    """Write v2 Conbench result payloads for the Go CLI to submit."""
 
-    # Upon first initialization, cache the new retrying client here so we don't have to
-    # login over and over.
-    _conbench_client: Optional[ConbenchClient] = None
-
-    @property
-    def conbench_client(self) -> ConbenchClient:
-        """Set up the new retrying ConbenchClient. And attempt to login.
-
-        (The new client needs login information in environment variables.)
-        """
-        if self._conbench_client:
-            return self._conbench_client
-
-        # Login happens here.
-        self._conbench_client = ConbenchClient()
-        return self._conbench_client
+    def __init__(self):
+        super().__init__()
+        self.results_dir = Path(os.environ.get("CONBENCH_RESULTS_DIR", "bench-results"))
 
     def publish(self, benchmark: dict) -> None:
-        self.conbench_client.post("/benchmark-results/", benchmark)
+        self.results_dir.mkdir(parents=True, exist_ok=True)
+        path = self.results_dir / f"result-{uuid.uuid4().hex}.json"
+        tmp_path = path.with_name(path.name + ".tmp")
+        tmp_path.write_text(
+            json.dumps(benchmark, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        tmp_path.replace(path)
+        print(f"Wrote Conbench result payload: {path}")
 
 
 class Benchmark(conbenchlegacy.runner.Benchmark):

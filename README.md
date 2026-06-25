@@ -17,9 +17,10 @@ Arrow C++, Java, and JavaScript micro benchmarks (which are found in the
 [arrow](https://github.com/apache/arrow) repository), and the Arrow R macro
 benchmarks (which are found in the
 [arrowbench](https://github.com/arctosalliance/arrowbench) repository). These
-benchmarks use the [Conbench legacy runner](https://github.com/conbench/conbench/tree/main/legacy)
-for benchmark execution, and the results are published to Arrow's public
-[Conbench server](https://conbench.arrow-dev.org/).
+benchmarks currently use the [Conbench legacy runner](https://github.com/conbench/conbench/tree/main/legacy)
+for benchmark execution while this fork migrates submission to Conbench v2. The
+benchmark commands write Conbench result payload JSON files, and the Go
+`conbench` CLI submits those payloads to a v2 server.
 
 On each commit to the main [Arrow](https://github.com/apache/arrow)
 branch, the C++, Python, Java, JavaScript, and R benchmarks are run on a
@@ -107,15 +108,24 @@ defaults or to disable a particular benchmark.
     (qa) $ pip install -e arrow/dev/archery
 
 
-### Conbench credentials default to this following (edit .conbench to configure)
+### Conbench v2 result submission
 
-(This is only needed if you plan on publishing benchmark results to a Conbench server.)
+Benchmark commands write result payloads to `CONBENCH_RESULTS_DIR`, or
+`bench-results/` when that environment variable is not set.
 
-    (qa) $ cd ~/workspace/benchmarks/
-    (qa) $ cat .conbench
-    url: http://localhost:5000
-    email: conbench@example.com
-    password: conbench
+Submit those payloads with the Go `conbench` CLI. In environments that also
+install the legacy Python benchmark runner command named `conbench`, install or
+symlink the Go binary under a distinct name such as `conbench-v2` and use that
+name for submission:
+
+    (qa) $ export CONBENCH_SERVER_URL=http://localhost:18080
+    (qa) $ export CONBENCH_TOKEN=<token>
+    (qa) $ export CONBENCH_RESULTS_DIR=bench-results
+    (qa) $ conbench-v2 results submit "$CONBENCH_RESULTS_DIR/*.json" \
+        --server "$CONBENCH_SERVER_URL" \
+        --jobs 16
+
+This fork does not use the old `.conbench` email/password file for publishing.
 
 
 ### Run tests
