@@ -1,5 +1,7 @@
 click
 pandas
 pyarrow
+# Temporary execution/parsing dependencies for this migration fork only.
+# Publishing must go through v2 JSON payload files plus the Go conbench CLI.
 benchadapt@git+https://github.com/conbench/conbench.git@8326988#subdirectory=benchadapt/python
 conbenchlegacy@git+https://github.com/conbench/conbench.git@8326988#subdirectory=legacy

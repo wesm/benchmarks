@@ -18,9 +18,10 @@ Arrow C++, Java, and JavaScript micro benchmarks (which are found in the
 benchmarks (which are found in the
 [arrowbench](https://github.com/arctosalliance/arrowbench) repository). These
 benchmarks currently use the [Conbench legacy runner](https://github.com/conbench/conbench/tree/main/legacy)
-for benchmark execution while this fork migrates submission to Conbench v2. The
-benchmark commands write Conbench result payload JSON files, and the Go
-`conbench` CLI submits those payloads to a v2 server.
+for benchmark execution while this fork migrates submission to Conbench v2. That
+legacy dependency is an execution shim, not the publishing contract: benchmark
+commands write Conbench result payload JSON files, and the Go `conbench` CLI
+submits those payloads to a v2 server.
 
 On each commit to the main [Arrow](https://github.com/apache/arrow)
 branch, the C++, Python, Java, JavaScript, and R benchmarks are run on a
@@ -126,6 +127,29 @@ name for submission:
         --jobs 16
 
 This fork does not use the old `.conbench` email/password file for publishing.
+It also does not use `benchclients`, `benchconnect`, or `benchalerts` to post
+results or publish CI reports.
+
+#### Temporary legacy execution dependencies
+
+This branch still depends on `conbenchlegacy` for benchmark command
+registration, option handling, batch metadata, and machine metadata. It still
+depends on `benchadapt` for the C++ Archery adapter that parses Arrow C++
+microbenchmark output. Those packages are temporary execution/parsing debt for
+this benchmark fork only.
+
+They must not be used as Conbench v2 client APIs:
+
+- no password-login or cookie-session publishing,
+- no `.conbench` email/password file for reporter authentication,
+- no `benchconnect` or `benchclients` result submission path, and
+- no `benchalerts` PR reporting path.
+
+A later benchmark-runner cleanup can replace `conbenchlegacy` command
+registration and machine metadata locally, then replace the `benchadapt`
+Archery parser with repo-owned parsing for C++ microbenchmark output. Until
+then, the supported Conbench boundary remains JSON payload files plus
+`conbench-v2 results submit`.
 
 #### V2 payload metadata
 
