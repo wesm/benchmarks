@@ -1,4 +1,5 @@
 import copy
+import json
 
 import pytest
 
@@ -81,6 +82,63 @@ def test_java_micro():
     )
     assert_benchmark(result)
     assert benchmark_filter in str(output)
+
+
+def test_java_micro_writes_one_v2_payload_per_result(tmp_path, monkeypatch):
+    monkeypatch.setenv("CONBENCH_RESULTS_DIR", str(tmp_path))
+    monkeypatch.delenv("DRY_RUN", raising=False)
+    tool_output = {
+        "suites": [
+            {
+                "benchmarks": [
+                    {
+                        "name": "org.apache.arrow.memory.ArrowBufBenchmarks.setZero",
+                        "unit": "items_per_second",
+                        "values": [1.0],
+                    },
+                    {
+                        "name": "org.apache.arrow.memory.ArrowBufBenchmarks.setOne",
+                        "unit": "items_per_second",
+                        "values": [2.0],
+                    },
+                ]
+            },
+            {
+                "benchmarks": [
+                    {
+                        "name": "org.apache.arrow.vector.IntVectorBenchmarks.set",
+                        "unit": "items_per_second",
+                        "values": [3.0],
+                    }
+                ]
+            },
+        ]
+    }
+
+    benchmark = java_micro_benchmarks.RecordJavaMicroBenchmarks()
+
+    def fake_execute_command(command):
+        output_path = command[command.index("--output") + 1]
+        with open(output_path, "w") as sink:
+            json.dump(tool_output, sink)
+        return "", ""
+
+    benchmark.execute_command = fake_execute_command
+
+    results = list(benchmark.run(run_id="java-run-1", run_reason="manual-smoke"))
+
+    assert len(results) == 3
+    payloads = [json.loads(path.read_text()) for path in tmp_path.glob("result-*.json")]
+    assert len(payloads) == 3
+    assert {payload["tags"]["name"] for payload in payloads} == {
+        "set",
+        "setOne",
+        "setZero",
+    }
+    assert {payload["run_id"] for payload in payloads} == {"java-run-1"}
+    assert {payload["context"]["benchmark_language"] for payload in payloads} == {
+        "Java"
+    }
 
 
 def test_java_micro_cli():

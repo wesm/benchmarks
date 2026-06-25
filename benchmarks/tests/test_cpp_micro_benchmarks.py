@@ -1,4 +1,5 @@
 import copy
+import json
 
 import pytest
 
@@ -84,6 +85,56 @@ def test_cpp_micro():
         iterations=1,
     )
     assert_benchmark(result)
+
+
+def test_cpp_micro_writes_v2_payloads_instead_of_legacy_post(tmp_path, monkeypatch):
+    monkeypatch.setenv("CONBENCH_RESULTS_DIR", str(tmp_path))
+    monkeypatch.delenv("DRY_RUN", raising=False)
+    payload = {
+        "run_id": "run-from-adapter",
+        "batch_id": "batch-from-adapter",
+        "timestamp": "2026-06-24T00:00:00Z",
+        "tags": {
+            "name": "TakeStringRandomIndicesWithNulls",
+            "source": "cpp-micro",
+            "suite": "arrow-compute-vector-selection-benchmark",
+        },
+        "info": {},
+        "context": {"benchmark_language": "C++"},
+        "github": {
+            "repository": "https://github.com/apache/arrow",
+            "commit": "abc123",
+        },
+        "machine_info": {"name": "worker"},
+        "stats": {"data": [1.0], "unit": "i/s"},
+    }
+
+    class FakeResult:
+        def to_publishable_dict(self):
+            return payload
+
+    class FakeAdapter:
+        def __init__(self):
+            self.result_fields_override = {}
+            self.results = [FakeResult()]
+
+        def run(self, command_params):
+            raise AssertionError(f"unexpected adapter run: {command_params}")
+
+        def post_results(self):
+            raise AssertionError("legacy benchadapt post_results must not run")
+
+    benchmark = cpp_micro_benchmarks.RecordCppMicroBenchmarks()
+    benchmark.adapter = FakeAdapter()
+
+    [(result, output)] = list(
+        benchmark.run(run_id="buildkite-run-1", run_reason="manual-smoke")
+    )
+
+    assert result == payload
+    assert output is None
+    [path] = tmp_path.glob("result-*.json")
+    assert json.loads(path.read_text()) == payload
 
 
 def test_cpp_micro_cli():

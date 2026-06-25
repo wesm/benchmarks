@@ -138,7 +138,8 @@ class RecordCppMicroBenchmarks(_benchmark.Benchmark):
         results = self.adapter.results
 
         if not os.environ.get("DRY_RUN"):
-            self.adapter.post_results()
+            for res in results:
+                self.conbench.publish(res.to_publishable_dict())
 
         for res in results:
             res_json = res.to_publishable_dict()
